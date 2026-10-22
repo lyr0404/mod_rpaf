@@ -8,7 +8,61 @@
 
 > 결과는 **참고용 사전 검토**입니다. 최종 판단은 건축구조기술사와 허가권자에게 있습니다.
 
-## Cloudflare에 배포하기 (park.trzoa.com)
+## 도커로 서버에 띄우기 (park.trzoa.com) — 추천
+
+healthdev.trzoa.com과 같은 방식입니다. 서버에 도커와 도커 컴포즈가 설치되어 있어야 합니다.
+
+**1. 서버에 올리고 설정하기**
+
+이 `compliance-checker` 폴더를 서버에 복사한 뒤, 그 폴더에서:
+
+```bash
+cp .env.example .env
+nano .env        # API 키와 접속 비밀번호를 입력하고 저장
+```
+
+**2. 실행하기**
+
+```bash
+docker compose up -d --build
+```
+
+서버의 3000번 포트에서 실행됩니다. healthdev가 이미 3000번을 쓰고 있다면
+`docker-compose.yml`의 `"3000:3000"`을 `"3001:3000"`처럼 앞쪽 숫자만 바꾸세요.
+서버를 재부팅해도 자동으로 다시 켜집니다.
+
+**3. 도메인 연결하기** — healthdev를 연결한 방식 그대로 하면 됩니다.
+
+- **Cloudflare 터널(Zero Trust → Tunnels)을 쓰는 경우**: healthdev가 있는 터널에
+  공개 호스트 이름(Public Hostname)을 하나 추가합니다. 하위 도메인 `park`, 도메인 `trzoa.com`,
+  서비스 `http://localhost:3000`으로 입력합니다.
+- **Cloudflare DNS + Nginx를 쓰는 경우**: Cloudflare DNS에 healthdev와 똑같이 `park` 레코드를 추가합니다
+  (같은 서버 IP, 주황색 구름 켜기). 그다음 Nginx에 아래 설정을 추가하고 `sudo nginx -s reload`를 실행합니다.
+
+```nginx
+server {
+    listen 80;
+    server_name park.trzoa.com;
+    client_max_body_size 50m;          # 도면 업로드 용량
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_buffering off;           # 진행 상황 실시간 표시
+        proxy_read_timeout 900s;       # 검토가 몇 분 걸리므로
+    }
+}
+```
+
+**자주 쓰는 명령**
+
+| 하고 싶은 일 | 명령 |
+|---|---|
+| 코드 수정 후 다시 띄우기 | `docker compose up -d --build` |
+| 로그 보기 | `docker compose logs -f` |
+| 끄기 | `docker compose down` |
+
+## Cloudflare Workers에 배포하기 (도커 대신 쓸 수 있는 방법)
 
 Cloudflare Workers에 올리면 `park.trzoa.com` 연결과 HTTPS 인증서까지 Cloudflare가 자동으로 처리합니다.
 
@@ -69,6 +123,7 @@ Cloudflare에서는 `wrangler secret put 이름`으로, 내 PC에서는 환경 �
 - `review.js` — 검토 로직. 업로드된 도면을 Claude에 보내고, 법령 사이트로 제한된 웹 검색·조회 도구를 붙여 진행 상황과 결과를 내보냅니다.
 - `worker.js` + `wrangler.jsonc` — Cloudflare Workers 진입점과 설정 (도메인 연결 포함).
 - `server.js` — 내 PC나 서버에서 실행할 때 쓰는 Express 진입점.
+- `Dockerfile` + `docker-compose.yml` + `.env.example` — 도커로 띄울 때 쓰는 설정.
 - `prompt.js` — 검토 지침(시스템 프롬프트)과 결과 JSON 스키마.
 - `public/index.html` — 업로드·진행 상황·결과 화면.
 

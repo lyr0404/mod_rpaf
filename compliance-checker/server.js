@@ -26,8 +26,11 @@ app.post("/api/review", async (req, res) => {
     Connection: "keep-alive",
   });
   let aborted = false;
+  // Proxies such as Cloudflare drop connections idle for ~100s; send a comment line periodically.
+  const keepAlive = setInterval(() => res.write(": keep-alive\n\n"), 20000);
   res.on("close", () => {
     aborted = true;
+    clearInterval(keepAlive);
   });
 
   await runReview({
@@ -39,6 +42,7 @@ app.post("/api/review", async (req, res) => {
     send: (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
     isAborted: () => aborted,
   });
+  clearInterval(keepAlive);
   res.end();
 });
 

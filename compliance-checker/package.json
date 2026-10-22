@@ -4,7 +4,9 @@
   "description": "구조 설계 도면의 현행 법규 적합성 사전 검토 웹앱",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev:cf": "wrangler dev",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
@@ -14,5 +16,8 @@
   "type": "module",
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.3"
   }
 }
